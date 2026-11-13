@@ -7,7 +7,7 @@ public static class ConfigService
 {
     private static readonly string AppDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RattoLauncher");
     private static readonly string ConfigPath = Path.Combine(AppDirectory, "config.json");
-    private static readonly JsonSerializerOptions jsonSerializerOptions = new JsonSerializerOptions { WriteIndented = true };
+    private static readonly JsonSerializerOptions jsonSerializerOptions = new JsonSerializerOptions { WriteIndented = true, PropertyNameCaseInsensitive = true };
 
     public static AppConfig? Load()
     {

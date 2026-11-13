@@ -9,6 +9,8 @@ namespace RattoLauncher.App;
 
 public partial class App : Application
 {
+    public static MainWindow CreateMainWindow() => new() { DataContext = new MainViewModel() };
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -26,7 +28,7 @@ public partial class App : Application
             }
             else
             {
-                desktop.MainWindow = new MainWindow { DataContext = new MainViewModel() };
+                desktop.MainWindow = CreateMainWindow();
             }
         }
 

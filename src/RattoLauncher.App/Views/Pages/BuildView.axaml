@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:RattoLauncher.App.ViewModels.Pages"
+             x:Class="RattoLauncher.App.Views.Pages.BuildView"
+             x:DataType="vm:BuildViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="12">
+            <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="Bold"/>
+
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{Binding Summary}" FontSize="12" TextWrapping="Wrap"/>
+                    <Button Content="Reload settings" Command="{Binding ReloadCommand}" HorizontalAlignment="Left"/>
+                </StackPanel>
+            </Border>
+
+            <ItemsControl ItemsSource="{Binding Steps}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:StepViewModel">
+                        <Border Classes="card" Margin="0,0,0,8">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Status}" Foreground="{DynamicResource TextMuted}"/>
+                                </Grid>
+                                <ProgressBar Minimum="0" Maximum="1" Value="{Binding Progress}" IsIndeterminate="{Binding IsIndeterminate}"/>
+                                <TextBlock Text="{Binding Detail}" FontSize="12" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextMuted}"/>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="primary" Content="START" Command="{Binding RunAllCommand}" HorizontalAlignment="Left" Padding="28,10"/>
+                <Button Content="Cancel" Command="{Binding RunAllCancelCommand}"/>
+            </StackPanel>
+
+            <Border Classes="card">
+                <ScrollViewer Height="140">
+                    <ItemsControl ItemsSource="{Binding Log}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <TextBlock Text="{Binding}" FontFamily="Consolas" FontSize="11" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

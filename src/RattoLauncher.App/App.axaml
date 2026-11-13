@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="RattoLauncher.App.App"
              xmlns:local="using:RattoLauncher.App"
-             RequestedThemeVariant="Default">
+             RequestedThemeVariant="Dark">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.DataTemplates>
@@ -10,27 +10,37 @@
     </Application.DataTemplates>
 
     <Application.Resources>
-        <FontFamily x:Key="YurukaFont">
-            avares://RattoLauncher.App/Assets/Fonts#FOT-Yuruka Std UB
+        <FontFamily x:Key="RowdyFont">
+            avares://RattoLauncher.App/Assets/Fonts#FOT-Rowdy Std EB
         </FontFamily>
+        
+        <SolidColorBrush x:Key="BgTitle"     Color="#222222"/> <!-- Title bar background -->
+        <SolidColorBrush x:Key="BgSidebar"   Color="#151515"/> <!-- Left sidebar background -->
+        <SolidColorBrush x:Key="Bg"          Color="#1A1A1A"/> <!-- Main background of the window and page area -->
+        <SolidColorBrush x:Key="Card"        Color="#000000"/> <!-- The card surface (“Ready to play?” box) -->
+        <SolidColorBrush x:Key="Accent"      Color="#E60050"/> <!-- PLAY button, the ❤︎⁠ in the title bar -->
+        <SolidColorBrush x:Key="AccentHover" Color="#A61D3B"/> <!-- PLAY button when hovered -->
+        <SolidColorBrush x:Key="AccentSoft"  Color="#4F566A"/> <!-- Selected sidebar item, hovered title bar buttons -->
+        <SolidColorBrush x:Key="TextMuted"   Color="#A7AEBD"/> <!-- Secondary text, unselected sidebar items, the page name in the title bar -->
     </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="/Styles/Theme.axaml"/>
 
         <Style Selector="TextBlock">
             <Setter Property="FontFamily"
-                    Value="{StaticResource YurukaFont}"/>
+                    Value="{StaticResource RowdyFont}"/>
         </Style>
 
         <Style Selector="TextBox">
             <Setter Property="FontFamily"
-                    Value="{StaticResource YurukaFont}"/>
+                    Value="{StaticResource RowdyFont}"/>
         </Style>
 
         <Style Selector="Button">
             <Setter Property="FontFamily"
-                Value="{StaticResource YurukaFont}"/>
+                Value="{StaticResource RowdyFont}"/>
         </Style>
     </Application.Styles>
 </Application>

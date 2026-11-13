@@ -1,0 +1,11 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RattoLauncher.App.ViewModels.Pages"
+        x:Class="RattoLauncher.App.Views.Pages.PlaceholderView"
+        x:DataType="vm:PlaceholderPageViewModel">
+    
+    <StackPanel Spacing="12">
+        <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="Bold"/>
+        <TextBlock Text="{Binding Message}" Foreground="{DynamicResource TextMuted}"/>
+    </StackPanel>
+</UserControl>

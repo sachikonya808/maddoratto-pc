@@ -1,13 +1,20 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:RattoLauncher.App.ViewModels"
+        xmlns:vmp="using:RattoLauncher.App.ViewModels.Pages"
+        xmlns:views="using:RattoLauncher.App.Views.Pages"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="RattoLauncher.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="RattoLauncher.App">
+        Title="RattoLauncher.App"
+        WindowStartupLocation="CenterScreen"
+        WindowDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        ExtendClientAreaToDecorationsHint="True">
 
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,
@@ -15,8 +22,52 @@
         <vm:MainViewModel />
     </Design.DataContext>
 
-    <TextBox Text="{Binding Greeting}"
-             HorizontalAlignment="Center"
-             VerticalAlignment="Center" />
+    <Border Background="{DynamicResource Bg}" CornerRadius="12" ClipToBounds="True">
+        <Grid RowDefinitions="48,*">
 
+            <!-- Title bar -->
+            <Border Grid.Row="0" Background="{DynamicResource BgTitle}" WindowDecorationProperties.ElementRole="TitleBar">
+                <Grid ColumnDefinitions="*,Auto" Margin="16,0,8,0">
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Text="❤︎⁠" FontSize="18" Foreground="{DynamicResource Accent}"/>
+                        <TextBlock Text="RattoLauncher" FontSize="15" FontWeight="Bold"/>
+                    </StackPanel>
+          
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding CurrentPage.Title}" Margin="0,0,12,0" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+                        <Button Classes="caption" Content="—" WindowDecorationProperties.ElementRole="MinimizeButton" Click="OnMinimizeClick"/>
+                        <Button Classes="caption close" Content="X" WindowDecorationProperties.ElementRole="CloseButton" Click="OnCloseClick"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Sidebar + page area -->
+            <Grid Grid.Row="1" ColumnDefinitions="88,*">
+                <Border Background="{DynamicResource BgSidebar}">
+                    <ListBox Classes="nav" ItemsSource="{Binding Pages}" SelectedItem="{Binding CurrentPage}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PageViewModel">
+                                <StackPanel Spacing="4" HorizontalAlignment="Center">
+                                    <TextBlock Text="{Binding Icon}" FontSize="20" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+
+                <!-- Add data templates here, for new pages! -->
+                <ContentControl Grid.Column="1" Margin="20" Content="{Binding CurrentPage}">
+                    <ContentControl.DataTemplates>
+                        <!-- Add Data Templates here! -->
+                        <DataTemplate DataType="vmp:PlayViewModel"><views:PlayView/></DataTemplate>
+                        <DataTemplate DataType="vmp:BuildViewModel"><views:BuildView/></DataTemplate>
+
+                        <!-- Placeholder -->
+                        <DataTemplate DataType="vmp:PlaceholderPageViewModel"><views:PlaceholderView/></DataTemplate>
+                    </ContentControl.DataTemplates>
+                </ContentControl>
+            </Grid>
+        </Grid>
+    </Border>
 </Window>

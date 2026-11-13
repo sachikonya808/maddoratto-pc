@@ -76,7 +76,7 @@ public partial class SetupWindow : Window
 
         if (Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var mainWindow = new MainWindow();
+            var mainWindow = App.CreateMainWindow();
 
             desktop.MainWindow = mainWindow;
             mainWindow.Show();
