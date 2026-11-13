@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RattoLauncher.App/RattoLauncher.App.csproj" />
+    <Project Path="src/RattoLauncher.Cli/RattoLauncher.Cli.csproj" />
+    <Project Path="src/RattoLauncher.Core/RattoLauncher.Core.csproj" />
+  </Folder>
+</Solution>

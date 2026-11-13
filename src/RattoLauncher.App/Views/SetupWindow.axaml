@@ -1,0 +1,84 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RattoLauncher.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="RattoLauncher.App.Views.SetupWindow"
+        x:DataType="vm:SetupViewModel"
+        Title="SetupWindow"
+        Width="740"
+        Height="435"
+        MinWidth="640"
+        MinHeight="360">
+
+    <StackPanel Spacing="12">
+        <TextBlock Text="Installation directory"
+                FontWeight="Bold"/>
+        <Grid ColumnDefinitions="*,Auto"
+            ColumnSpacing="8">
+            
+                <TextBox x:Name="InstallationPathTextBox"
+                        Grid.Column="0"
+                        PlaceholderText="Select an installation folder..."
+                        VerticalContentAlignment="Center"/>
+
+                <Button Grid.Column="1"
+                        Content="Browse..."
+                        Tag="Select an installation folder"
+                        Click="BrowseFolder_Click"/>
+        </Grid>
+
+        <TextBlock Text="Base Game"
+                FontWeight="Bold"/>  
+        <Grid ColumnDefinitions="*,Auto"
+            ColumnSpacing="8">
+            
+                <TextBox x:Name="BaseGameTextBox"
+                        Grid.Column="0"
+                        PlaceholderText="Base game..."
+                        VerticalContentAlignment="Center"/>
+
+                <Button Grid.Column="1"
+                        Content="Browse..."
+                        Tag="Select the Base Game file"
+                        Click="FilePicker_Click"/>
+        </Grid>
+
+        <TextBlock Text="1.02 Update"
+                FontWeight="Bold"/>
+        <Grid ColumnDefinitions="*,Auto"
+            ColumnSpacing="8">
+            
+                <TextBox x:Name="GameUpdateTextBox"
+                        Grid.Column="0"
+                        PlaceholderText="Update..."
+                        VerticalContentAlignment="Center"/>
+
+                <Button Grid.Column="1"
+                        Content="Browse..."
+                        Tag="Select the Game Update file"
+                        Click="FilePicker_Click"/>
+        </Grid>
+
+        <TextBlock Text="System Keys"
+                FontWeight="Bold"/>
+        <Grid ColumnDefinitions="*,Auto"
+            ColumnSpacing="8">
+            
+                <TextBox x:Name="SystemKeysTextBox"
+                        Grid.Column="0"
+                        PlaceholderText="Select your legally acquired prod.keys..."
+                        VerticalContentAlignment="Center"/>
+
+                <Button Grid.Column="1"
+                        Content="Browse..."
+                        Tag="Select YOUR prod.keys"
+                        Click="FilePicker_Click"/>
+        </Grid>
+
+        <Button
+                Content="Finish Setup"
+                Click="FinishButton_Click" />
+    </StackPanel>
+</Window>
