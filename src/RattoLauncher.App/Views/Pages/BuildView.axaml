@@ -8,9 +8,20 @@
             <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="Bold"/>
 
             <Border Classes="card">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="{Binding Summary}" FontSize="12" TextWrapping="Wrap"/>
-                    <Button Content="Reload settings" Command="{Binding ReloadCommand}" HorizontalAlignment="Left"/>
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <Button Content="Reload settings" Command="{Binding ReloadCommand}"/>
+
+                    <!-- built -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" IsVisible="{Binding IsBuilt}">
+                        <PathIcon Width="16" Height="16" Foreground="{DynamicResource Success}" Data="M3,12 L5,10 L9,14 L19,4 L21,6 L9,18 Z"/>
+                        <TextBlock Text="Game is built" FontSize="12" Foreground="{DynamicResource Success}"/>
+                    </StackPanel>
+
+                    <!-- not built -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" IsVisible="{Binding !IsBuilt}">
+                        <PathIcon Width="16" Height="16" Foreground="{DynamicResource Warning}" Data="M10.5,4 H13.5 V14 H10.5 Z M10.5,17 H13.5 V20 H10.5 Z"/>
+                        <TextBlock Text="Not built yet" FontSize="12" Foreground="{DynamicResource Warning}"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 

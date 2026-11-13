@@ -17,6 +17,13 @@
     <None Remove="Models\**" />
   </ItemGroup>
 
+  <Target Name="RemovePdbsAfterPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <PdbToDelete Include="$(PublishDir)**\*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(PdbToDelete)" />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.6" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.6" />

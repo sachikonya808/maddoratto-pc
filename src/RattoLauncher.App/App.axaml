@@ -22,6 +22,9 @@
         <SolidColorBrush x:Key="AccentHover" Color="#A61D3B"/> <!-- PLAY button when hovered -->
         <SolidColorBrush x:Key="AccentSoft"  Color="#4F566A"/> <!-- Selected sidebar item, hovered title bar buttons -->
         <SolidColorBrush x:Key="TextMuted"   Color="#A7AEBD"/> <!-- Secondary text, unselected sidebar items, the page name in the title bar -->
+
+        <SolidColorBrush x:Key="Success" Color="#67E11E"/>
+        <SolidColorBrush x:Key="Warning" Color="#F34E2A"/>
     </Application.Resources>
 
     <Application.Styles>

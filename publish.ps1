@@ -1,1 +1,1 @@
-dotnet publish -c Release -r win-x64 --self-contained false -p:DebugType=None -p:DebugSymbols=false -p:CopyDebugSymbolFilesFromPackages=false
+dotnet publish src/RattoLauncher.App/RattoLauncher.App.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
