@@ -1,3 +1,4 @@
+using System.Text;
 using RattoLauncher.Core.Services;
 
 namespace RattoLauncher.Core.AnimeBuilder;
@@ -36,13 +37,13 @@ public sealed class Ykcmp
 
     public Ykcmp(string exePath) { _exe = exePath; }
 
-    public byte[] Decompress(byte[] block)
+    public byte[] Decompress(byte[] block, CancellationToken ct = default)
     {
         string src = Helpers.Tmp(), dst = Helpers.Tmp();
         try
         {
             File.WriteAllBytes(src, block);
-            ProcessRunner.Run(_exe, "-a", "0x0", src, dst);
+            RunDynamis(ct, "-a", "0x0", src, dst);
 
             return File.ReadAllBytes(dst);
         }
@@ -53,14 +54,14 @@ public sealed class Ykcmp
         }
     }
 
-    public byte[] Compress(byte[] raw, int level = 1)
+    public byte[] Compress(byte[] raw, int level = 1, CancellationToken ct = default)
     {
         string src = Helpers.Tmp(), dst = Helpers.Tmp();
 
         try
         {
             File.WriteAllBytes(src, raw);
-            ProcessRunner.Run(_exe, "-cl", level.ToString(), src, dst);
+            RunDynamis(ct, "-cl", level.ToString(), src, dst);
 
             return File.ReadAllBytes(dst);
         }
@@ -69,5 +70,27 @@ public sealed class Ykcmp
             Helpers.TryDelete(src);
             Helpers.TryDelete(dst);
         }
+    }
+
+    private void RunDynamis(CancellationToken ct, params string[] args)
+    {
+        var output = new StringBuilder();
+        var lines = new InlineProgress<string>(l => { lock (output) output.AppendLine(l); });
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromMinutes(2));
+
+        int code;
+        try
+        {
+            code = ProcessRunner.RunAsync(_exe, args, Path.GetDirectoryName(_exe)!, lines, timeout.Token)
+                                .GetAwaiter().GetResult();
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new TimeoutException($"{Path.GetFileName(_exe)} didn't finish in time.");
+        }
+
+        if (code != 0) { throw new InvalidOperationException($"{Path.GetFileName(_exe)} failed (exit code {code}):\n{output.ToString().Trim()}"); }
     }
 }

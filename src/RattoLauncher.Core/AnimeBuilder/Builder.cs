@@ -13,7 +13,7 @@ public sealed class BuildReport
     public string? OutputPath { get; set; }
 }
 
-public sealed class ModAnimeBuilder
+public sealed class Builder
 {
     static readonly Regex NameRx = new(@"^([0-9a-fA-F]{16})_(\d+)x(\d+)\.png$", RegexOptions.Compiled);
 
@@ -23,7 +23,7 @@ public sealed class ModAnimeBuilder
     readonly TextureIndex _index;
     readonly string _rel;
 
-    public ModAnimeBuilder(AnimeDat pristine, TextureIndex index, Ykcmp yk, IBcEncoder encoder, string relative) 
+    public Builder(AnimeDat pristine, TextureIndex index, Ykcmp yk, IBcEncoder encoder, string relative) 
     { 
         _pristine = pristine; 
         _index = index; 
@@ -39,15 +39,21 @@ public sealed class ModAnimeBuilder
         return m.Success ? new TextureJob(m.Groups[1].Value.ToLowerInvariant(), int.Parse(m.Groups[2].Value), int.Parse(m.Groups[3].Value), pngPath) : null;
     }
 
-    public BuildReport Build(IEnumerable<string> pngPaths, string modsRoot, string modName, int ykLevel = 1)
+    public BuildReport Build(IEnumerable<string> pngPaths, string modsRoot, string modName, int ykLevel = 1,
+                             IProgress<ModOperationProgress>? progress = null, CancellationToken ct = default)
     {
         var report = new BuildReport();
         var repl = new Dictionary<int, Replacement>();
         var blockCache = new Dictionary<string, byte[]>();
 
-        foreach (var path in pngPaths)
+        var list = pngPaths as IReadOnlyList<string> ?? pngPaths.ToList();
+        int done = 0;
+
+        foreach (var path in list)
         {
+            ct.ThrowIfCancellationRequested();
             string file = Path.GetFileName(path);
+            progress?.Report(new ModOperationProgress($"Processing {file}", done++, list.Count));
             var job = ParseName(path);
 
             if (job == null) 
@@ -76,8 +82,17 @@ public sealed class ModAnimeBuilder
             }
 
             ImageResult img;
-            using (var fs = File.OpenRead(path)) { img = ImageResult.FromStream(fs, ColorComponents.RedGreenBlueAlpha); }
-
+            try
+            {
+                using var fs = File.OpenRead(path); 
+                img = ImageResult.FromStream(fs, ColorComponents.RedGreenBlueAlpha);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                report.Skipped.Add($"{file}: Couldn't read the PNG ({ex.Message})");
+                continue;
+            }
+            
             bool okSize = (img.Width, img.Height) == (info.W, info.H) || (img.Width, img.Height) == (info.LogW, info.LogH);
             if (!okSize) 
             { 
@@ -112,13 +127,13 @@ public sealed class ModAnimeBuilder
                     continue; 
                 }
 
-                blk = _yk.Compress(data, ykLevel);
+                blk = _yk.Compress(data, ykLevel, ct);
                 if (blk.Length < 20 || BinaryPrimitives.ReadUInt32LittleEndian(blk.AsSpan(12)) != blk.Length || !blk.AsSpan(0, 8).SequenceEqual("YKCMP_V1"u8)) 
                 {
                     throw new InvalidOperationException("ykcmp output does not look like a game block");
                 }
 
-                if (!_yk.Decompress(blk).AsSpan().SequenceEqual(data)) { throw new InvalidOperationException("Round trip failed"); }
+                if (!_yk.Decompress(blk, ct).AsSpan().SequenceEqual(data)) { throw new InvalidOperationException("Round trip failed"); }
                 
                 blockCache[job.Hash] = blk;
             }
@@ -132,7 +147,9 @@ public sealed class ModAnimeBuilder
         }
 
         if (repl.Count == 0) { return report; }
+        ct.ThrowIfCancellationRequested();
 
+        progress?.Report(new ModOperationProgress("Writing the mod file", 0, 0));
         string outPath = Path.Combine(modsRoot, modName, "romfs", _rel);
         string full = Path.GetFullPath(outPath);
         string root = Path.GetFullPath(modsRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;

@@ -34,21 +34,4 @@ public static class ProcessRunner
         ct.ThrowIfCancellationRequested();
         return process.ExitCode;
     }
-
-        
-    public static void Run(string _exe, params string[] args)
-    {
-        var psi = new ProcessStartInfo(_exe) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
-        
-        foreach (var a in args) psi.ArgumentList.Add(a);
-        
-        using var p = Process.Start(psi) ?? throw new InvalidOperationException("could not start ykcmp");
-        
-        var so = p.StandardOutput.ReadToEndAsync();
-        var se = p.StandardError.ReadToEndAsync();
-        
-        p.WaitForExit();
-        
-        if (p.ExitCode != 0) throw new InvalidOperationException($"ykcmp failed ({p.ExitCode}): {se.Result} {so.Result}");
-    }
 }
