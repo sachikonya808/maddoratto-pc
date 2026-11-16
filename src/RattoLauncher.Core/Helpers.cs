@@ -6,4 +6,15 @@ public static class Helpers
     {
         return File.Exists(filePath);
     }
+
+    public static void TryDelete(string p)
+    {
+        try
+        {
+            File.Delete(p);
+        }
+        catch { }
+    }
+
+    public static string Tmp() => Path.Combine(Path.GetTempPath(), "mrdmod_" + Guid.NewGuid().ToString("N"));
 }
