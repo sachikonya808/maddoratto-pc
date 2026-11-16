@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,6 +21,9 @@ public partial class ModsViewModel : PageViewModel
     public override string Title => "Mods";
     public override Geometry Icon { get; } = Geometry.Parse("M20.5,11H19V7C19,5.89 18.1,5 17,5H13V3.5A2.5,2.5 0 0,0 10.5,1A2.5,2.5 0 0,0 8,3.5V5H4A2,2 0 0,0 2,7V10.8H3.5C5,10.8 6.2,12 6.2,13.5C6.2,15 5,16.2 3.5,16.2H2V20A2,2 0 0,0 4,22H7.8V20.5C7.8,19 9,17.8 10.5,17.8C12,17.8 13.2,19 13.2,20.5V22H17A2,2 0 0,0 19,20V16H20.5A2.5,2.5 0 0,0 23,13.5A2.5,2.5 0 0,0 20.5,11Z");
 
+    public string PackedModsFolder { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RattoLauncher", "mods");
+    private const string OutputModName = "RattoLauncher Textures";
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(InitializeCommand))]
     [NotifyCanExecuteChangedFor(nameof(BuildCommand))]
@@ -31,26 +36,27 @@ public partial class ModsViewModel : PageViewModel
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(BuildCommand))]
-    private string _pngFolder;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(BuildCommand))]
     private string _modName = "";
 
     [ObservableProperty] private string _status = "Not prepared yet.";
     [ObservableProperty] private double _progress;
     [ObservableProperty] private bool _isIndeterminate;
-    [ObservableProperty] private string _details;   // validation problems, errors, or the build report
+    [ObservableProperty] private string _details;
 
     // ---- commands -----------------------------------------------------------------
 
     private bool CanInitialize() => !IsBusy;
 
-    private bool CanBuild() => !IsBusy && IsReady
-        && !string.IsNullOrWhiteSpace(PngFolder)
-        && !string.IsNullOrWhiteSpace(ModName);
+    private bool CanBuild() => !IsBusy && IsReady;
 
     private bool CanCancel() => IsBusy;
+
+    [RelayCommand]
+    private void OpenModsFolder()
+    {
+        Directory.CreateDirectory(PackedModsFolder);
+        Process.Start(new ProcessStartInfo(PackedModsFolder) { UseShellExecute = true }); 
+    }
 
     [RelayCommand(CanExecute = nameof(CanInitialize), IncludeCancelCommand = true)]
     private async Task InitializeAsync(CancellationToken ct)
@@ -63,12 +69,11 @@ public partial class ModsViewModel : PageViewModel
         }
 
         IsBusy = true; IsReady = false; Details = null; Progress = 0;
-        var progress = new Progress<ModOperationProgress>(Apply);   // created on the UI thread, so callbacks arrive there
+        var progress = new Progress<ModOperationProgress>(Apply);
         try
         {
             var paths = ResolvePaths(cfg);
-            await _anime.InitializeAsync(paths.RomfsRoot, paths.PristineDat, paths.YkcmpExe,
-                                         paths.CacheDir, progress, ct);
+            await _anime.InitializeAsync(paths.RomfsRoot, paths.PristineDat, paths.YkcmpExe, paths.CacheDir, progress, ct);
             IsReady = true;
             Progress = 1;
             Status = "Ready.";
@@ -98,8 +103,8 @@ public partial class ModsViewModel : PageViewModel
         try
         {
             var paths = ResolvePaths(cfg);
-            var report = await _anime.BuildAsync(PngFolder!, paths.ModsRoot, ModName.Trim(),
-                                                 CreateEncoder(), progress, ct);
+            var report = await _anime.BuildAsync(PackedModsFolder, paths.ModsRoot, OutputModName, CreateEncoder(), progress, ct);
+
             Progress = 1;
             Status = report.OutputPath is null
                 ? "Nothing was applied. See the details below."
@@ -111,8 +116,6 @@ public partial class ModsViewModel : PageViewModel
         finally { IsBusy = false; IsIndeterminate = false; }
     }
 
-    // One Cancel button for whichever operation is running. Cancelling a command that
-    // isn't running does nothing, so it's safe to call both.
     [RelayCommand(CanExecute = nameof(CanCancel))]
     private void Cancel()
     {
@@ -129,7 +132,6 @@ public partial class ModsViewModel : PageViewModel
         if (p.Fraction is double f) Progress = f;
     }
 
-    // Short message in the status line, full text (e.g. ykcmp's output) in the details card.
     private void ShowError(Exception ex)
     {
         var text = ex.Message.Trim();
@@ -157,25 +159,18 @@ public partial class ModsViewModel : PageViewModel
         return sb.ToString();
     }
 
-    // ---- the parts only you can fill in -------------------------------------------
-
-    private sealed record ModPaths(string RomfsRoot, string PristineDat, string YkcmpExe,
-                                   string CacheDir, string ModsRoot);
+    private sealed record ModPaths(string RomfsRoot, string PristineDat, string YkcmpExe, string CacheDir, string ModsRoot);
 
     private static ModPaths ResolvePaths(AppConfig cfg)
     {
-        // TODO: build these from cfg.InstallationFolder and your layout:
-        //   RomfsRoot   - the extracted romfs folder
-        //   PristineDat - the ORIGINAL Anime_EN.dat inside it (the builder never writes to it)
-        //   YkcmpExe    - where the launcher ships ykcmp.exe (e.g. <app folder>/tools/ykcmp.exe)
-        //   CacheDir    - e.g. <install folder>/user/cache/anime
-        //   ModsRoot    - the folder your mod loader / LayeredFS reads mods from
-        throw new NotImplementedException("Fill in ModsViewModel.ResolvePaths.");
+        return new ModPaths(
+            RomfsRoot: Path.Combine(cfg.InstallationFolder, "game_data", "romfs"),
+            PristineDat: Path.Combine(cfg.InstallationFolder, "game_data", "romfs", "Data", "Anime", "Anime_EN.dat"),
+            YkcmpExe: Path.Combine(cfg.InstallationFolder, "modtools", "ykcmp.exe"),
+            CacheDir: Path.Combine(cfg.InstallationFolder, "cache"),
+            ModsRoot: Path.Combine(cfg.InstallationFolder, "0100E6701231C000", "0100E6701231C000_data", "mods")
+        );
     }
 
-    private static IBcEncoder CreateEncoder()
-    {
-        // TODO: return your BC7 encoder
-        throw new NotImplementedException("Fill in ModsViewModel.CreateEncoder.");
-    }
+    private static IBcEncoder CreateEncoder() => new BcnBc7Encoder();
 }

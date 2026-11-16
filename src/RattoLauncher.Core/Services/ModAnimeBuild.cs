@@ -9,6 +9,14 @@ public sealed class PreflightException(IReadOnlyList<string> problems) : Excepti
 
 public sealed class ModAnimeBuild : IDisposable
 {
+    private static readonly string[] KnownAnimeDatHashes =
+    {
+        "AF78844E423EDDAAB86D385048785A4B751BD581806AB2186CA32DB409EA89A7",
+
+        //PS4 HD using XDelta, while I work out how to do BC1, RGBA8 and Multi Mipmap
+        "E0080310F58BD8FDD252EE60E2AB741622A2BA266FE5CEA2C5BDAFA96EEEA05A"
+    };
+
     private AnimeDat? _dat;
     private TextureIndex? _index;
     private Ykcmp? _yk;
@@ -26,7 +34,7 @@ public sealed class ModAnimeBuild : IDisposable
                 ResetState();
 
                 if (!File.Exists(ykcmpExe))
-                    throw new FileNotFoundException("The ykcmp tool wasn't found.", ykcmpExe);
+                    throw new FileNotFoundException("The ykcmp tool wasn't found. (Download it from https://github.com/iltrof/ykcmp/releases/latest and place it inside your InstallFolder/modtools)", ykcmpExe);
                 if (!File.Exists(pristinePath))
                     throw new FileNotFoundException("The original animation file wasn't found.", pristinePath);
 
@@ -38,7 +46,20 @@ public sealed class ModAnimeBuild : IDisposable
                 var problems = dat.Preflight();
                 if (problems.Count > 0) { throw new PreflightException(problems); }
                 
-                // TODO: compare TextureIndex.Fingerprint against a hard-coded pristine value
+                var hashProgress = progress is null 
+                    ? null
+                    : new InlineProgress<double>(f => progress.Report(new ModOperationProgress("Verifying Anime_EN.dat", (int)(f * 1000), 1000)));
+                var actual = await Hashing.Sha256Async(pristinePath, hashProgress, ct);
+
+                if (!KnownAnimeDatHashes.Contains(actual, StringComparer.OrdinalIgnoreCase))
+                {
+                    throw new PreflightException(
+                    [
+                        "This Anime_EN.dat isn't the version the mod builder supports.",
+                        $"Its SHA-256 is {actual}."
+                    ]);
+                }
+
 
                 ct.ThrowIfCancellationRequested();
 

@@ -4,9 +4,22 @@ using System.Text.Json;
 
 namespace RattoLauncher.Core.AnimeBuilder;
 
+public sealed record TextureMetadata(
+    string Hash,
+    TexKind Kind,
+    byte Format,
+    int Width,
+    int Height,
+    int LogicalWidth,
+    int LogicalHeight,
+    bool SingleLevel,
+    int[] Blocks
+);
+
 public sealed class TextureIndex
 {
     public Dictionary<string, List<int>> ByHash { get; } = new();
+    public Dictionary<string, TextureMetadata> Metadata { get; } = new();
 
     public static string HashOf(TexKind kind, int w, int h, byte[] data)
     {
@@ -48,6 +61,9 @@ public sealed class TextureIndex
                     idx.ByHash[h] = list.ToList();
                 }
 
+                idx.FillMetadata(dat);
+                idx.ExportMetadata(cacheDir, fp);
+
                 return idx;
             }
         }
@@ -77,7 +93,50 @@ public sealed class TextureIndex
             Textures = index.ByHash.ToDictionary(kv => kv.Key, kv => kv.Value.ToArray())
         }));
 
+        index.FillMetadata(dat);
+        index.ExportMetadata(cacheDir, fp);
+
         return index;
+    }
+
+    void FillMetadata(AnimeDat dat)
+    {
+        Metadata.Clear();
+        foreach (var (hash, blocks) in ByHash)
+        {
+            var i = dat.Info(blocks[0]);
+            var (ew, eh) = i.Elements(i.W, i.H);
+            bool single = i.DSize == (uint)(ew * eh * i.BytesPerElement);
+            Metadata[hash] = new TextureMetadata(hash, i.Kind, i.Fmt, i.W, i.H, i.LogW, i.LogH, single, blocks.ToArray());
+        }
+    }
+
+    private static readonly JsonSerializerOptions meta_WriteOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    void ExportMetadata(string cacheDir, string fingerprint)
+    {
+        try
+        {
+            var rows = Metadata.Values.OrderBy(m => m.Blocks[0]).Select(m =>
+                new TextureMetadata(m.Hash, m.Kind, m.Format, m.Width, m.Height, m.LogicalWidth, m.LogicalHeight, m.SingleLevel, m.Blocks)
+            );
+
+            var doc = new
+            {
+                Fingerprint = fingerprint,
+                UniqueTextures = Metadata.Count,
+                Blocks = ByHash.Values.Sum(l => l.Count),
+                Textures = rows
+            };
+
+            string path = Path.Combine(cacheDir, "texture_metadata.json");
+            File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(doc, meta_WriteOptions));
+            File.Move(path + ".tmp", path, overwrite: true);
+        } catch { }
     }
 
     sealed class CacheFile
