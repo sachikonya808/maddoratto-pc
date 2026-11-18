@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 
@@ -8,16 +9,22 @@ public sealed record TextureMetadata(
     string Hash,
     TexKind Kind,
     byte Format,
+    byte Variant,
     int Width,
     int Height,
     int LogicalWidth,
     int LogicalHeight,
-    bool SingleLevel,
+    int Levels,
+    uint DSize,
+    byte B0,
+    byte B1,
+    bool Plannable,
     int[] Blocks
 );
 
 public sealed class TextureIndex
 {
+    const int CacheVersion = 2;
     public Dictionary<string, List<int>> ByHash { get; } = new();
     public Dictionary<string, TextureMetadata> Metadata { get; } = new();
 
@@ -52,7 +59,7 @@ public sealed class TextureIndex
         if (File.Exists(cache))
         {
             var c = JsonSerializer.Deserialize<CacheFile>(File.ReadAllText(cache));
-            if (c != null && c.Fingerprint == fp)
+            if (c != null && c.Fingerprint == fp && c.Version == CacheVersion)
             {
                 var idx = new TextureIndex();
 
@@ -68,27 +75,40 @@ public sealed class TextureIndex
             }
         }
 
-        var hashes = new string[dat.Textures.Count];
+        var hashes = new string?[dat.Textures.Count];
         int done = 0;
 
         Parallel.For(0, hashes.Length, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, g =>
         {
-            var info = dat.Info(g);
-            var data = yk.Decompress(dat.BlockBytes(g));
+            try
+            {
+                var info = dat.Info(g);
+                var kind = info.Kind;
+                var data = yk.Decompress(dat.BlockBytes(g));
 
-            hashes[g] = HashOf(info.Kind, info.W, info.H, data);
+                hashes[g] = HashOf(info.Kind, info.W, info.H, data);
+            }
+            catch (NotSupportedException ex)
+            { 
+                hashes[g] = null;
+                if (g < 3) Debug.WriteLine($"block {g}: {ex.Message}");
+            }
+
             progress?.Report(Interlocked.Increment(ref done));
         });
 
         var index = new TextureIndex();
         for (int g = 0; g < hashes.Length; g++)
         {
+            if(hashes[g] is not { } h) { continue; }
+
             if (!index.ByHash.TryGetValue(hashes[g], out var l)) { index.ByHash[hashes[g]] = l = new List<int>(); }
             l.Add(g);
         }
 
         File.WriteAllText(cache, JsonSerializer.Serialize(new CacheFile
         {
+            Version = CacheVersion,
             Fingerprint = fp,
             Textures = index.ByHash.ToDictionary(kv => kv.Key, kv => kv.Value.ToArray())
         }));
@@ -105,9 +125,9 @@ public sealed class TextureIndex
         foreach (var (hash, blocks) in ByHash)
         {
             var i = dat.Info(blocks[0]);
-            var (ew, eh) = i.Elements(i.W, i.H);
-            bool single = i.DSize == (uint)(ew * eh * i.BytesPerElement);
-            Metadata[hash] = new TextureMetadata(hash, i.Kind, i.Fmt, i.W, i.H, i.LogW, i.LogH, single, blocks.ToArray());
+            bool plannable = (uint)TexInfo.Plan(i).Sum(l => l.Size) == i.DSize;
+
+            Metadata[hash] = new TextureMetadata(hash, i.Kind, i.Fmt, i.V54, i.W, i.H, i.LogW, i.LogH, i.Levels, i.DSize, i.B0, i.B1, plannable, blocks.ToArray());
         }
     }
 
@@ -121,9 +141,7 @@ public sealed class TextureIndex
     {
         try
         {
-            var rows = Metadata.Values.OrderBy(m => m.Blocks[0]).Select(m =>
-                new TextureMetadata(m.Hash, m.Kind, m.Format, m.Width, m.Height, m.LogicalWidth, m.LogicalHeight, m.SingleLevel, m.Blocks)
-            );
+            var rows = Metadata.Values.OrderBy(m => m.Blocks[0]);
 
             var doc = new
             {
@@ -141,6 +159,7 @@ public sealed class TextureIndex
 
     sealed class CacheFile
     {
+        public int Version { get; set; }
         public string Fingerprint { get; set; } = "";
         public Dictionary<string, int[]> Textures { get; set; } = new();
     }

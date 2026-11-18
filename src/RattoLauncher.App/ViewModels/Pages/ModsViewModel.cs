@@ -172,5 +172,5 @@ public partial class ModsViewModel : PageViewModel
         );
     }
 
-    private static IBcEncoder CreateEncoder() => new BcnBc7Encoder();
+    private static IBcEncoder CreateEncoder() => new BcnEncoder();
 }

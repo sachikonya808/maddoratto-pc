@@ -3,11 +3,26 @@ using RattoLauncher.Core.Services;
 
 namespace RattoLauncher.Core.AnimeBuilder;
 
+public interface IBcEncoder
+{
+    byte[] EncodeBc7(byte[] rgba, int width, int height);
+    byte[] EncodeBc1(byte[] rgba, int width, int height);
+    byte[] EncodeBc3(byte[] rgba, int width, int height);
+}
+
+
 public static class BlockLinear
 {
-    public static byte[] ToSwitch(byte[] lin, int ew, int eh, int B, int bhg)
+    static long Offset(int x, int y, int B, int wg, int bhg)
     {
-        int wg = (ew * B + 63) / 64;
+        long xb = (long)x * B;
+        long gob = (y / (8 * bhg)) * 512L * bhg * wg + (xb / 64) * 512L * bhg + ((y % (8 * bhg)) / 8) * 512L;
+        long xr = xb % 64; int yr = y % 8;
+        return gob + (xr / 32) * 256 + (yr / 2) * 64 + ((xr % 32) / 16) * 32 + (yr % 2) * 16 + (xr % 16);
+    }
+
+    public static byte[] ToSwitch(byte[] lin, int ew, int eh, int B, int wg, int bhg)
+    {
         int rows = (eh + 8 * bhg - 1) / (8 * bhg) * (8 * bhg);
         var outb = new byte[(long)rows * wg * 64];
 
@@ -15,20 +30,27 @@ public static class BlockLinear
         {
             for (int x = 0 ; x < ew ; x++)
             {
-                long xb = (long)x * B;
-                long gob = (y / (8 * bhg)) * 512L * bhg * wg + (xb / 64) * 512L * bhg + ((y % (8 * bhg)) / 8) * 512L;
-                long xr = xb % 64; int yr = y % 8;
-                long off = gob + (xr / 32) * 256 + (yr / 2) * 64 + ((xr % 32) / 16) * 32 + (yr % 2) * 16 + (xr % 16);
-                Buffer.BlockCopy(lin, (y * ew + x) * B, outb, (int)off, B);
+                Buffer.BlockCopy(lin, (y * ew + x) * B, outb, (int)Offset(x, y, B, wg, bhg), B);
             }
         }
+        
         return outb;
     }
-}
 
-public interface IBcEncoder
-{
-    byte[] EncodeBc7(byte[] rgba, int width, int height);
+    public static byte[] FromSwitch(byte[] data, int dataOffset, int ew, int eh, int B, int wg, int bhg)
+    {
+        var lin = new byte[ew * eh * B];
+
+        for (int y = 0; y < eh; y++)
+        {
+            for (int x = 0; x < ew; x++)
+            {
+                Buffer.BlockCopy(data, dataOffset + (int)Offset(x, y, B, wg, bhg), lin, (y * ew + x) * B, B);
+            }
+        }
+
+        return lin;
+    }
 }
 
 public sealed class Ykcmp

@@ -39,6 +39,42 @@ public sealed class Builder
         return m.Success ? new TextureJob(m.Groups[1].Value.ToLowerInvariant(), int.Parse(m.Groups[2].Value), int.Parse(m.Groups[3].Value), pngPath) : null;
     }
 
+    byte[] EncodeLevel(TexKind kind, bool bgra, byte[] rgba, int w, int h)
+    {
+        if (kind != TexKind.Rgba8 && (w % 4 != 0 || h % 4 != 0)) { (rgba, w, h) = Helpers.PadTo4(rgba, w, h); }
+
+        return kind switch
+        {
+            TexKind.Bc7 => _enc.EncodeBc7(rgba, w, h),
+            TexKind.Bc3 => _enc.EncodeBc3(rgba, w, h),
+            TexKind.Bc1 => _enc.EncodeBc1(rgba, w, h),
+            TexKind.Rgba8 => bgra ? Helpers.SwapRb(rgba) : rgba,
+            _ => throw new NotSupportedException($"Unsupported texture kind! {kind}")
+        };
+    }
+
+    byte[] Pack(TexInfo info, TexKind kind, byte[] rgba, int w, int h, List<Level> plan, CancellationToken ct)
+    {
+        var levels = MipChains.Generate(rgba, w, h, plan.Count);
+        var data = new byte[plan.Sum(l => l.Size)];
+
+        for (int n = 0; n < plan.Count; n++)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var lv = plan[n];
+            byte[] lin = EncodeLevel(kind, info.Bgra, levels[n], lv.W, lv.H);
+
+            if(lin.Length != (lv.Ew * lv.Eh * info.BytesPerElement)) { throw new InvalidOperationException($"Encoder returned the wrong number of bytes for level {n}"); }
+
+            byte[] tiled = BlockLinear.ToSwitch(lin, lv.Ew, lv.Eh, info.BytesPerElement, lv.Wg, lv.Bh);
+            
+            Buffer.BlockCopy(tiled, 0, data, lv.Offset, tiled.Length);
+        }
+
+        return data;
+    }
+
     public BuildReport Build(IEnumerable<string> pngPaths, string modsRoot, string modName, int ykLevel = 1,
                              IProgress<ModOperationProgress>? progress = null, CancellationToken ct = default)
     {
@@ -75,11 +111,9 @@ public sealed class Builder
                 continue; 
             }
 
-            if (info.Kind != TexKind.Bc7) 
-            { 
-                report.Skipped.Add($"{file}: Only BC7 textures are supported for now (this one is {info.Kind})"); 
-                continue; 
-            }
+            TexKind kind;
+            try { kind = info.Kind; }
+            catch (NotSupportedException ex) { report.Skipped.Add($"{file}: {ex.Message}"); continue; }
 
             ImageResult img;
             try
@@ -100,32 +134,27 @@ public sealed class Builder
                 continue; 
             }
 
-            var (ew0, eh0) = info.Elements(info.W, info.H);
-            if (info.DSize != (uint)(ew0 * eh0 * info.BytesPerElement)) 
-            { 
-                report.Skipped.Add($"{file}: Existing texture is not a single plain level (mip chain / odd padding)"); 
-                continue; 
+            bool resized = (img.Width, img.Height) != (info.W, info.H);
+
+            if (resized && info.Levels > 1)
+            {
+                report.Skipped.Add($"{file}: Mip chains can't be resized (PNG must be {info.W}x{info.H})");
+                continue;
             }
 
-            var (ew, eh) = info.Elements(img.Width, img.Height);
-            int bhg = info.BlockHeightGobs;
-            if (ew % 8 != 0 || eh % (8 * bhg) != 0) 
-            { 
-                report.Skipped.Add($"{file}: Size not supported yet (needs element grid multiple of 8 x {8 * bhg})"); 
-                continue; 
+            var target = info with { W = img.Width, H = img.Height };
+            var plan = TexInfo.Plan(target);
+            int newDSize = plan.Sum(l => l.Size);
+
+            if (!resized && (uint)newDSize != info.DSize)
+            {
+                report.Skipped.Add($"{file}: Layout of this texture is not understood (blocks 139 and 294 are known cases)");
+                continue;
             }
 
             if (!blockCache.TryGetValue(job.Hash, out var blk))
             {
-                byte[] lin = _enc.EncodeBc7(img.Data, img.Width, img.Height);
-                if (lin.Length != ew * eh * info.BytesPerElement) { throw new InvalidOperationException("Encoder returned the wrong number of bytes"); }
-
-                byte[] data = BlockLinear.ToSwitch(lin, ew, eh, info.BytesPerElement, bhg);
-                if (data.Length != lin.Length) 
-                { 
-                    report.Skipped.Add($"{file}: Block-linear data would need padding"); 
-                    continue; 
-                }
+                byte[] data = Pack(info, kind, img.Data, img.Width, img.Height, plan, ct);
 
                 blk = _yk.Compress(data, ykLevel, ct);
                 if (blk.Length < 20 || BinaryPrimitives.ReadUInt32LittleEndian(blk.AsSpan(12)) != blk.Length || !blk.AsSpan(0, 8).SequenceEqual("YKCMP_V1"u8)) 
@@ -140,10 +169,10 @@ public sealed class Builder
 
             foreach (int g in copies)
             {
-                repl[g] = new Replacement(NewRecord(_pristine, g, blk, img.Width, img.Height, ew * eh * info.BytesPerElement), blk);
+                repl[g] = new Replacement(NewRecord(_pristine, g, blk, img.Width, img.Height, newDSize), blk);
             }
 
-            report.Applied.Add($"{file}: {copies.Count} copy/copies (blocks {string.Join(",", copies)}), {info.W}x{info.H} -> {img.Width}x{img.Height}");
+            report.Applied.Add($"{file}: {copies.Count} copy/copies (blocks {string.Join(",", copies)}), {info.W}x{info.H} -> {img.Width}x{img.Height}, {info.Levels}");
         }
 
         if (repl.Count == 0) { return report; }
