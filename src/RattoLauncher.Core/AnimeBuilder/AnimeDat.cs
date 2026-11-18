@@ -3,24 +3,68 @@ using System.Text;
 
 namespace RattoLauncher.Core.AnimeBuilder;
 
-public enum TexKind : byte { Bc7 = 0, Bc1 = 1, Rgba8 = 2 }
+public enum TexKind : byte { Bc7 = 0, Bc1 = 1, Rgba8 = 2 , Bc3 = 3}
 
 public sealed record FadEntry(string Name, long Size, long Offset);
 
 public readonly record struct TexRef(int Fad, int Local, int RecordPos);
 
+public record Level(int W, int H, int Ew, int Eh, int Wg, int Bh, int Offset, int Size);
+
 public readonly record struct TexInfo(
-    uint Stride, uint R20, int LogW, int LogH, byte Fmt, int W, int H, uint W32, uint H32,
-    uint DSize, uint CSize, byte BhLog)
+    uint Stride, uint R20, int LogW, int LogH, byte Fmt, byte V54, int W, int H, uint W32, uint H32,
+    uint DSize, uint CSize, byte B0, byte B1, int Levels)
 {
-    public TexKind Kind => Fmt == 3 ? TexKind.Bc1
-        : (Fmt == 0 && (double)DSize / (W * H) >= 3.9) ? TexKind.Rgba8 : TexKind.Bc7;
+    public TexKind Kind => (Fmt, V54) switch
+    {
+        (7, 6) or (0, 6) => TexKind.Bc7,
+        (7, 3) => TexKind.Bc3,
+        (3, 2) => TexKind.Bc1,
+        (0, 1) or (0, 2) => TexKind.Rgba8,
+        _ => throw new NotSupportedException($"Unknown format pair ({Fmt:x2}, {V54:x2})")
+    };
+
+    public bool Bgra => Kind == TexKind.Rgba8 && V54 == 2;
 
     public int BytesPerElement => Kind switch { TexKind.Bc1 => 8, TexKind.Rgba8 => 4, _ => 16 };
 
     public (int ew, int eh) Elements(int w, int h) => Kind == TexKind.Rgba8 ? (w, h) : ((w + 3) / 4, (h + 3) / 4);
 
-    public int BlockHeightGobs => 1 << Math.Min((int)BhLog, 4);
+    public int BlockHeightGobs => 1 << Math.Min((int)B0, 4);
+
+    public int PitchAlignGobs => 1 << B1;
+
+    public static List<Level> Plan(TexInfo t)
+    {
+        var list = new List<Level>();
+        bool bc = t.Kind != TexKind.Rgba8;
+        int B = t.BytesPerElement, off = 0;
+
+        for (int n = 0; n < t.Levels; n++)
+        {
+            int lw = Math.Max(t.W >> n, 1), lh = Math.Max(t.H >> n, 1);
+            int ew = bc ? (lw + 3) / 4 : lw, eh = bc ? (lh + 3) / 4 : lh;
+            int wmin = (ew * B + 63) / 64;
+            int bh, wg;
+            
+            if (n == 0) 
+            { 
+                bh = 1 << Math.Min((int)t.B0, 4);
+                wg = Helpers.RoundUp(wmin, 1 << t.B1);
+            }
+            else
+            {
+                bh = Math.Min(1 << Math.Min((int)t.B0, 4), Helpers.Pow2Ceil((eh + 7) / 8));
+                wg = wmin;
+            }
+
+            int size = wg * Helpers.RoundUp(eh, 8 * bh) * 64;
+
+            list.Add(new(lw, lh, ew, eh, wg, bh, off, size));
+            off += size;
+        }
+        return list;
+    }
 }
 
 public sealed class AnimeDat
@@ -96,6 +140,7 @@ public sealed class AnimeDat
             LogH: BinaryPrimitives.ReadUInt16LittleEndian(Data.AsSpan((int)r + 0x2a)),
 
             Fmt: Data[r + 0x33],
+            V54: Data[r + 0x54],
 
             W: BinaryPrimitives.ReadUInt16LittleEndian(Data.AsSpan((int)r + 0x34)),
             H: BinaryPrimitives.ReadUInt16LittleEndian(Data.AsSpan((int)r + 0x36)),
@@ -106,7 +151,10 @@ public sealed class AnimeDat
             DSize: U32(Data, r + 0x6c),
             CSize: U32(Data, r + 0x70),
 
-            BhLog: Data[r + 0x74]
+            B0: Data[r + 0x74],
+            B1: Data[r + 0x75],
+            
+            Levels: Math.Max((int)Data[r + 0x65], 1)
         );
     }
 
