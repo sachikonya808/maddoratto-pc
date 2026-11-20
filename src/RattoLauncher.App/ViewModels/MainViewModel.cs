@@ -19,7 +19,12 @@ public partial class MainViewModel : ViewModelBase
 
         Pages = new PageViewModel[]
         {
-            play, build, new ConfigViewModel(), new ModsViewModel(), new AboutViewModel()
+            play, 
+            build, 
+            new ConfigViewModel(), 
+            new ModsViewModel(),
+            new SongsViewModel(),
+            new AboutViewModel()
         };
         play.BuildRequested += () => CurrentPage = build;
 

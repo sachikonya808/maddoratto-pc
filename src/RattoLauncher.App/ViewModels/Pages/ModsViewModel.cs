@@ -18,10 +18,10 @@ public partial class ModsViewModel : PageViewModel
 {
     private readonly ModAnimeBuild _anime = new();
 
-    public override string Title => "Mods";
-    public override Geometry Icon { get; } = Geometry.Parse("M20.5,11H19V7C19,5.89 18.1,5 17,5H13V3.5A2.5,2.5 0 0,0 10.5,1A2.5,2.5 0 0,0 8,3.5V5H4A2,2 0 0,0 2,7V10.8H3.5C5,10.8 6.2,12 6.2,13.5C6.2,15 5,16.2 3.5,16.2H2V20A2,2 0 0,0 4,22H7.8V20.5C7.8,19 9,17.8 10.5,17.8C12,17.8 13.2,19 13.2,20.5V22H17A2,2 0 0,0 19,20V16H20.5A2.5,2.5 0 0,0 23,13.5A2.5,2.5 0 0,0 20.5,11Z");
+    public override string Title => "Textures";
+    public override Geometry Icon { get; } = Geometry.Parse("M20 2H4C2.9 2 2 2.9 2 4V20C2 21.11 2.9 22 4 22H20C21.11 22 22 21.11 22 20V4C22 2.9 21.11 2 20 2M4 6L6 4H10.9L4 10.9V6M4 13.7L13.7 4H18.6L4 18.6V13.7M20 18L18 20H13.1L20 13.1V18M20 10.3L10.3 20H5.4L20 5.4V10.3Z");
 
-    public string PackedModsFolder { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RattoLauncher", "mods");
+    public string PackedModsFolder { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RattoLauncher", "mods", "textures");
     private const string OutputModName = "RattoLauncher Textures";
 
     [ObservableProperty]
@@ -56,6 +56,20 @@ public partial class ModsViewModel : PageViewModel
     {
         Directory.CreateDirectory(PackedModsFolder);
         Process.Start(new ProcessStartInfo(PackedModsFolder) { UseShellExecute = true }); 
+    }
+
+    [RelayCommand]
+    private void OpenLayeredFSFolder()
+    {
+        var cfg = ConfigService.Load();
+        if (cfg is not { SetupCompleted: true })
+        {
+            Status = "Complete the setup first.";
+            return;
+        }
+
+        Directory.CreateDirectory(PackedModsFolder);
+        Process.Start(new ProcessStartInfo(ResolvePaths(cfg).ModsRoot) { UseShellExecute = true });
     }
 
     [RelayCommand(CanExecute = nameof(CanInitialize), IncludeCancelCommand = true)]
