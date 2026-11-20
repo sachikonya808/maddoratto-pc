@@ -62,6 +62,8 @@
                         <!-- Add Data Templates here! -->
                         <DataTemplate DataType="vmp:PlayViewModel"><views:PlayView/></DataTemplate>
                         <DataTemplate DataType="vmp:BuildViewModel"><views:BuildView/></DataTemplate>
+                        <DataTemplate DataType="vmp:ModsViewModel"><views:ModsView/></DataTemplate>
+                        <DataTemplate DataType="vmp:SongsViewModel"><views:SongsView/></DataTemplate>
 
                         <!-- Placeholder -->
                         <DataTemplate DataType="vmp:PlaceholderPageViewModel"><views:PlaceholderView/></DataTemplate>
