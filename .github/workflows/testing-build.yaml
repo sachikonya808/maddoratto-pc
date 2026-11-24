@@ -1,34 +1,37 @@
-name: Testing build
+name: nightly
 
 on:
   push:
     branches: [testing]
-  workflow_dispatch:
 
-concurrency:
-  group: testing-build
-  cancel-in-progress: true
+permissions:
+  contents: write
 
 jobs:
-  publish:
+  nightly:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
+      
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
 
       - name: Publish
-        run: >
-          dotnet publish src/RattoLauncher.App/RattoLauncher.App.csproj
-          -c Release -r win-x64 --self-contained
-          -p:PublishSingleFile=true
-          -p:Version=0.1.${{ github.run_number }}
-          -o publish
+        run: dotnet publish src/RattoLauncher.App/RattoLauncher.App.csproj -c Release -r win-x64 --self-contained -o out
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: RattoLauncher-win-x64-${{ github.run_number }}
-          path: publish/
-          retention-days: 14
+      - name: Zip
+        run: Compress-Archive -Path out\* -DestinationPath RattoLauncher-nightly-win-x64.zip
+
+      - name: Replace the nightly release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete nightly --cleanup-tag --yes || true
+          gh release create nightly RattoLauncher-nightly-win-x64.zip \
+            --prerelease \
+            --target "${{ github.sha }}" \
+            --title "Nightly (${GITHUB_SHA::7})" \
+            --notes "Automatic build of commit ${{ github.sha }}. Unstable."
+            
