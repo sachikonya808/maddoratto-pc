@@ -2,7 +2,7 @@ name: Testing build
 
 on:
   push:
-    branches: [testing]
+    branches: [experimental]
   workflow_dispatch:
 
 concurrency:
