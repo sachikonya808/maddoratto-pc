@@ -136,6 +136,8 @@ public static class ModSongsBuild
                         Composer = song.Composer,
                         Bpm = song.Bpm,
                         Str0C = $"BGM{song.BaseId:D3}",
+                        NormalDifficulty = song.NormalDifficulty,
+                        HardDifficulty = song.HardDifficulty
                     });
                 }
                 catch (Exception e) when (e is PackProblem or InvalidDataException or System.Text.Json.JsonException
@@ -189,7 +191,7 @@ public static class ModSongsBuild
 
 
     private sealed record PreparedSong(
-        string Title, string Composer, uint Bpm, int BaseId, Dictionary<string, ChartAddition> Charts);
+        string Title, string Composer, uint Bpm, int BaseId, Dictionary<string, ChartAddition> Charts, uint? NormalDifficulty, uint? HardDifficulty);
 
     private sealed class PackProblem(string message) : Exception(message);
 
@@ -217,6 +219,10 @@ public static class ModSongsBuild
 
         if (bpm <= 0) throw new PackProblem("BPM must be greater than 0");
         if (baseId is < 0 or > 999) throw new PackProblem("BaseID must be between 0 and 999");
+
+        uint? normalDifficulty = CheckLevel(meta.NormalDifficulty, "NormalDifficulty");
+        uint? hardDifficulty = CheckLevel(meta.HardDifficulty, "HardDifficulty");
+
         if (Find(zip, "song.acb") is null) throw new PackProblem("song.acb is missing");
 
         var additions = new Dictionary<string, ChartAddition>();
@@ -263,7 +269,7 @@ public static class ModSongsBuild
             }
         }
 
-        return new PreparedSong(meta.Title!, meta.Composer!, (uint)bpm, baseId, additions);
+        return new PreparedSong(meta.Title!, meta.Composer!, (uint)bpm, baseId, additions, normalDifficulty, hardDifficulty);
     }
 
     private static ZipArchiveEntry? Find(ZipArchive zip, string name) =>
@@ -280,5 +286,13 @@ public static class ModSongsBuild
         if (string.IsNullOrWhiteSpace(modName) || modName is "." or ".." ||
             modName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
             throw new ArgumentException($"'{modName}' is not a valid mod folder name.", nameof(modName));
+    }
+
+    private static uint? CheckLevel(int? level, string name)
+    {
+        if(level is null) { return null; }
+        if(level is < 1 or > 5) { throw new PackProblem($"{name} must be between 1 and 5"); }
+        
+        return (uint)level.Value;
     }
 }

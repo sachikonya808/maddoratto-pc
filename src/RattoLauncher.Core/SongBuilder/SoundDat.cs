@@ -53,6 +53,8 @@ public sealed class CloneOptions
     public string? Title { get; init; }
     public string? Composer { get; init; }
     public uint? Bpm { get; init; }
+    public uint? NormalDifficulty { get; init; }
+    public uint? HardDifficulty { get; init; }       
     public uint? Sort { get; init; }
     public bool KeepNames { get; init; }
     public bool KeepCharts { get; init; }
@@ -301,6 +303,8 @@ public static class SoundDat
         }
 
         if (o.Bpm.HasValue) n.Bpm = o.Bpm.Value;
+        if (o.NormalDifficulty.HasValue) n.Num34 = o.NormalDifficulty.Value;
+        if (o.HardDifficulty.HasValue) n.Num38 = o.HardDifficulty.Value;
 
         n.Sort = o.Sort ?? records.Where(r => r.Selectable == 1).Max(r => r.Sort) + 1;
         n.Selectable = 1;
