@@ -8,7 +8,7 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="RattoLauncher.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="/Assets/ratto.ico"
         Title="RattoLauncher.App"
         WindowStartupLocation="CenterScreen"
         WindowDecorations="None"

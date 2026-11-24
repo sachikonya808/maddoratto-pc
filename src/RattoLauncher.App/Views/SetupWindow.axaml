@@ -6,6 +6,7 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="RattoLauncher.App.Views.SetupWindow"
         x:DataType="vm:SetupViewModel"
+	Icon="/Assets/ratto.ico"
         Title="SetupWindow"
         Width="740"
         Height="435"

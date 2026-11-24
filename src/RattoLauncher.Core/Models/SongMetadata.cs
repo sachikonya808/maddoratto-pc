@@ -7,5 +7,7 @@
         public int? BPM { get; set; }
         public int? BaseID { get; set; }
         public bool CustomCharts { get; set; } = false;
+        public int? NormalDifficulty { get; set; }
+        public int? HardDifficulty { get; set; }
     }
 }
