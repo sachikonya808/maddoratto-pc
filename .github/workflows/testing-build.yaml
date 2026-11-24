@@ -18,7 +18,11 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Publish
-        run: dotnet publish src/RattoLauncher.App/RattoLauncher.App.csproj -c Release -r win-x64 --self-contained -o out
+        run: >
+          dotnet publish src/RattoLauncher.App/RattoLauncher.App.csproj 
+          -c Release -r win-x64 --self-contained 
+          -p:PublishSingleFile=true 
+          -o out
 
       - name: Zip
         run: Compress-Archive -Path out\* -DestinationPath RattoLauncher-nightly-win-x64.zip
