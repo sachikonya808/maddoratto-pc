@@ -1,13 +1,14 @@
-using System;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RattoLauncher.Core.Models;
 using RattoLauncher.Core.Services;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace RattoLauncher.App.ViewModels.Pages;
 
@@ -28,10 +29,12 @@ public partial class BuildViewModel : PageViewModel
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RunAllCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExtractGameCommand))]
     private bool _isBusy;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RunAllCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExtractGameCommand))]
     private bool _setupDone;
 
     [ObservableProperty] 
@@ -39,14 +42,18 @@ public partial class BuildViewModel : PageViewModel
 
     private void UpdateBuiltState() => IsBuilt = GameLocator.FindGameExecutable(_ctx.InstallDir) is not null;
 
+    private readonly StepViewModel _downloadStep;
+    private readonly StepViewModel _extractStep;
+    private readonly StepViewModel _buildStep;
+
     public BuildViewModel()
     {
-        Steps = new ObservableCollection<StepViewModel>
-        {
-            new StepViewModel(new DownloadEngine(_ctx, EngineUrl, sha256: null)),
-            new StepViewModel(new ExtractGame(_ctx)),
-            new StepViewModel(new BuildRecomp(_ctx))
-        };
+        _downloadStep = new StepViewModel(new DownloadEngine(_ctx, EngineUrl, sha256: null));
+        _extractStep = new StepViewModel(new ExtractGame(_ctx));
+        _buildStep = new StepViewModel(new BuildRecomp(_ctx));
+
+        Steps = new ObservableCollection<StepViewModel> { _downloadStep, _extractStep, _buildStep };
+
         Reload();
     }
 
@@ -76,30 +83,42 @@ public partial class BuildViewModel : PageViewModel
     private bool CanRun() => SetupDone && !IsBusy;
 
     [RelayCommand(CanExecute = nameof(CanRun), IncludeCancelCommand = true)]
-    private async Task RunAllAsync(CancellationToken ct)
+    private Task RunAllAsync(CancellationToken ct) => RunStepsAsync(Steps, forced: null, ct);
+
+    [RelayCommand(CanExecute = nameof(CanRun), IncludeCancelCommand = true)]
+    private Task ExtractGameAsync(CancellationToken ct) => RunStepsAsync([_downloadStep, _extractStep], forced: _extractStep, ct);
+
+    [RelayCommand]
+    private void Cancel()
+    {
+        RunAllCancelCommand.Execute(null);
+        ExtractGameCancelCommand.Execute(null);
+    }
+
+    private async Task RunStepsAsync(IReadOnlyList<StepViewModel> steps, StepViewModel? forced, CancellationToken ct)
     {
         Reload();
         if (!SetupDone) { Log.Add("Complete the setup first."); return; }
 
         IsBusy = true;
         Log.Clear();
-        foreach (var s in Steps) { s.Status = StepStatus.Pending; s.Detail = ""; s.Progress = 0; }
+        foreach (var s in steps) { s.Status = StepStatus.Pending; s.Detail = ""; s.Progress = 0; }
 
         var log = new Progress<string>(line =>
         {
-           Log.Add(line);
-           if(Log.Count > 1000) Log.RemoveAt(0);
+            Log.Add(line);
+            if (Log.Count > 1000) Log.RemoveAt(0);
         });
 
         StepViewModel? current = null;
         try
         {
-            foreach (var s in Steps)
+            foreach (var s in steps)
             {
                 current = s;
                 ct.ThrowIfCancellationRequested();
 
-                if (await s.Step.IsDoneAsync(ct))
+                if (s != forced && await s.Step.IsDoneAsync(ct))
                 {
                     s.Status = StepStatus.Done;
                     s.Detail = "Done!";
@@ -111,13 +130,13 @@ public partial class BuildViewModel : PageViewModel
                 s.IsIndeterminate = true;
                 var progress = new Progress<StepProgress>(p =>
                 {
-                   s.Detail = p.Message;
-                   s.IsIndeterminate = p.Fraction is null;
-                   if(p.Fraction is double f) { s.Progress = f; }
+                    s.Detail = p.Message;
+                    s.IsIndeterminate = p.Fraction is null;
+                    if (p.Fraction is double f) { s.Progress = f; }
                 });
 
                 await Task.Run(() => s.Step.RunAsync(progress, log, ct), ct);
-                
+
                 s.Status = StepStatus.Done;
                 s.IsIndeterminate = false;
                 s.Progress = 1;
