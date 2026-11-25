@@ -43,8 +43,9 @@
             </ItemsControl>
 
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Classes="primary" Content="START" Command="{Binding RunAllCommand}" HorizontalAlignment="Left" Padding="28,10"/>
-                <Button Content="Cancel" Command="{Binding RunAllCancelCommand}"/>
+                <Button Classes="primary" Content="BUILD" Command="{Binding RunAllCommand}" HorizontalAlignment="Left" Padding="28,10"/>
+                <Button Classes="primary" Content="EXTRACT GAME ASSETS ONLY" Command="{Binding ExtractGameCommand}" HorizontalAlignment="Left" Padding="28,10"/>
+                <Button Content="Cancel" Command="{Binding CancelCommand}"/>
             </StackPanel>
 
             <Border Classes="card">
